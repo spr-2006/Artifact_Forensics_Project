@@ -1,5 +1,6 @@
 # 🛡️ Project HeritageShield
 **Digital Artifact Forensics & Epigraphy Restoration Pipeline**
+<img width="1285" height="656" alt="Screenshot 2026-03-25 225142" src="https://github.com/user-attachments/assets/dbdad97a-25c0-4e7a-b207-e49628ba8656" />
 
 ## Overview!
 
@@ -15,6 +16,7 @@ Project HeritageShield is a dual-core computer vision web application designed t
 * **CLAHE Enhancement:** Utilizes Contrast Limited Adaptive Histogram Equalization to boost micro-shadows in shallow carvings.
 * **Bilateral Filtering:** Non-linear edge preservation smooths geological erosion without degrading carved groove depth.
 * **Adaptive Gaussian Thresholding:** Isolates structural topology to render faded inscriptions as clean, readable documents.
+<img width="914" height="542" alt="Screenshot 2026-03-25 225038" src="https://github.com/user-attachments/assets/b69b3f69-7e3b-4689-9838-0b5a0df78967" />
 
 ## Tech Stack
 * **Backend:** Python, FastAPI, Uvicorn
