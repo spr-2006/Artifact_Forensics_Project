@@ -1,22 +1,36 @@
+import base64
+import io
+import os
+import shutil
+import tempfile
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-import shutil
-import os
 from PIL import Image
 import cv2
 import numpy as np
+import uvicorn
 
-# Import all 3 levels of your forensic pipeline
-from code.metadata_module import extract_metadata
+# Import all 3 levels of your forensic pipelineata
 from code.ela_module import perform_ela
 from code.noise_module import analyze_noise  # <-- NEW MODULE
 from code.restoration_module import restore_epigraphy  # <-- NEW IMPORT
+from code.metadata_module import extract_metadata
 
 app = FastAPI(title="Digital Artifact Forensics Dashboard")
 
-os.makedirs("static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
+def image_data_uri(image):
+    """Encode a bounded-size preview for serverless responses (no disk storage)."""
+    if image is None:
+        return ""
+
+    preview = image.convert("RGB")
+    preview.thumbnail((1280, 1280))
+    buffer = io.BytesIO()
+    preview.save(buffer, format="JPEG", quality=82, optimize=True)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"
 
 @app.get("/", response_class=HTMLResponse)
 async def home_dashboard():
@@ -49,8 +63,8 @@ async def home_dashboard():
 
 @app.post("/analyze", response_class=HTMLResponse)
 async def analyze_evidence(file: UploadFile = File(...)):
-    
-    evidence_path = f"static/{file.filename}"
+    work_dir = tempfile.mkdtemp(prefix="heritageshield-")
+    evidence_path = os.path.join(work_dir, "evidence")
     with open(evidence_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
@@ -61,8 +75,10 @@ async def analyze_evidence(file: UploadFile = File(...)):
             img_format = img.format or "Unknown"
             img_mode = img.mode
             file_size_kb = round(os.path.getsize(evidence_path) / 1024, 2)
+            original_src = image_data_uri(img)
     except Exception:
         img_width, img_height, img_format, img_mode, file_size_kb = ("N/A", "N/A", "N/A", "N/A", "N/A")
+        original_src = ""
 
     # --- 2. RUN THE FORENSIC TRIFECTA & PHASE 2 RESTORATION ---
     meta_report = extract_metadata(evidence_path)
@@ -70,13 +86,9 @@ async def analyze_evidence(file: UploadFile = File(...)):
     noise_img = analyze_noise(evidence_path)
     restored_img = restore_epigraphy(evidence_path) # <-- RUNNING PHASE 2
     
-    ela_filename = f"ela_{file.filename}"
-    noise_filename = f"noise_{file.filename}"
-    restored_filename = f"restored_{file.filename}"
-    
-    if ela_img: ela_img.save(f"static/{ela_filename}")
-    if noise_img: noise_img.save(f"static/{noise_filename}")
-    if restored_img: restored_img.save(f"static/{restored_filename}")
+    ela_src = image_data_uri(ela_img) or original_src
+    noise_src = image_data_uri(noise_img) or original_src
+    restored_src = image_data_uri(restored_img) or original_src
         
     # --- 3. CALCULATE STATISTICAL TELEMETRY (THE MATH) ---
     # We mathematically calculate the variance of the high-frequency noise.
@@ -103,6 +115,8 @@ async def analyze_evidence(file: UploadFile = File(...)):
             
     except Exception:
         spatial_variance, ai_confidence, texture_grade, stat_color = ("Error", "Error", "Error", "#ffffff")
+
+    shutil.rmtree(work_dir, ignore_errors=True)
 
     # --- 4. GENERATE THE AUTOMATED VERDICT ---
     meta_status = meta_report.get('Status', '')
@@ -182,15 +196,15 @@ async def analyze_evidence(file: UploadFile = File(...)):
                     <h3>3. Phase 1: Digital Forgery Detection (Modules A & B)</h3>
                     <div class="image-row">
                         <div class="img-container">
-                            <img src="/static/{file.filename}">
+                            <img src="{original_src}">
                             <p><b>Original Evidence</b></p>
                         </div>
                         <div class="img-container">
-                            <img src="/static/{ela_filename}">
+                            <img src="{ela_src}">
                             <p><b>Module A: ELA Map</b></p>
                         </div>
                         <div class="img-container">
-                            <img src="/static/{noise_filename}">
+                            <img src="{noise_src}">
                             <p><b>Module B: High-Frequency Noise</b></p>
                         </div>
                     </div>
@@ -202,11 +216,11 @@ async def analyze_evidence(file: UploadFile = File(...)):
                     
                     <div class="image-row">
                         <div class="img-container">
-                            <img src="/static/{file.filename}">
+                            <img src="{original_src}">
                             <p><b>Degraded Source Material</b></p>
                         </div>
                         <div class="img-container">
-                            <img src="/static/{restored_filename}">
+                            <img src="{restored_src}">
                             <p><b>Restored Epigraphy Output</b></p>
                         </div>
                     </div>
@@ -225,3 +239,9 @@ async def analyze_evidence(file: UploadFile = File(...)):
         </body>
     </html>
     """
+
+
+if __name__ == "__main__":
+    print("Starting HeritageShield FastAPI server...")
+    print("Open a browser and navigate to http://127.0.0.1:8000")
+    uvicorn.run("app:app", host="127.0.0.1", port=8000, log_level="info")

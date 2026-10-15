@@ -39,7 +39,7 @@ Project HeritageShield is a dual-core computer vision web application designed t
 
 3. **Install the required dependencies:**
    ```bash
-   pip install fastapi uvicorn opencv-python numpy pillow python-multipart
+   pip install -r requirements.txt
    ```
 
 4. **Ignite the Local Server:**
@@ -53,13 +53,13 @@ Project HeritageShield is a dual-core computer vision web application designed t
 ## Generating Reports
 Upload an image of a historical artifact or structural site. The system will automatically process the evidence through all forensic modules and generate a comprehensive, printable PDF report containing visual maps and statistical telemetry.
 
-## Deploy to Render with GitHub Actions
-This application includes a Render Blueprint and a GitHub Actions workflow. Actions runs a dependency install, Python compilation check, and FastAPI import smoke test on pushes and pull requests. A successful push to `main` triggers the Render deployment.
+## Deploy to Vercel with GitHub Actions
+The GitHub Actions workflow runs the dependency, compilation, and FastAPI import checks on pushes and pull requests. A successful push to `main` deploys the app to Vercel with the Vercel CLI. The Vercel project uses `app.py` as its FastAPI entrypoint and `vercel.json` sets a 60-second function duration.
 
-1. Push this repository to GitHub.
-2. In Render, create a new **Blueprint** from the GitHub repository and apply the configuration in `render.yaml`. This creates the web service with automatic deploys disabled, so GitHub Actions controls deployments.
-3. In the Render service settings, create/copy its **Deploy Hook** URL.
-4. In GitHub, open **Settings → Secrets and variables → Actions → New repository secret**. Set the name to `RENDER_DEPLOY_HOOK_URL` and the value to the Render Deploy Hook URL.
-5. Push or merge a change to `main`. Check the repository's **Actions** tab for the CI checks and deployment trigger; Render will show deployment status and the public service URL.
+1. Sign in to Vercel and create a project for this GitHub repository. Use the repository root as the project root. If Vercel's Git integration is enabled, disable automatic Git deployments so the GitHub Actions workflow is the only deploy trigger.
+2. Install the Vercel CLI (`npm install --global vercel`) and link this repository to the project with `vercel link`. The generated `.vercel/project.json` contains the `orgId` and `projectId` values needed by the workflow; `.vercel/` is git-ignored.
+3. Create a Vercel access token in Vercel account settings.
+4. In GitHub, open **Settings → Secrets and variables → Actions** and add repository secrets named `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` with the corresponding values.
+5. Push or merge a change to `main`. GitHub Actions runs checks, then deploys to Vercel. Find the public URL in the deployment output or Vercel dashboard.
 
-The workflow expects the production branch to be named `main`; change the branch condition in `.github/workflows/deploy.yml` if your default branch has another name. Uploaded evidence and generated images are stored under `static/`, which is ephemeral on Render's free service and may be cleared after restarts or redeploys. Use persistent/object storage before relying on it for long-term evidence retention.
+The workflow expects the production branch to be named `main`. Image uploads and derived previews are processed in temporary storage and embedded in the report response; the app does not retain uploaded evidence. Vercel Functions have request-size and execution-time limits, so very large images or long analyses may need a dedicated compute service and persistent object storage.

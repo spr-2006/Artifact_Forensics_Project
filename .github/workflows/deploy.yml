@@ -1,4 +1,4 @@
-name: Test and deploy to Render
+name: Test and deploy to Vercel
 
 on:
   push:
@@ -31,13 +31,33 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - name: Trigger Render deployment
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Verify Vercel secrets
         run: |
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-            echo "Missing GitHub Actions secret: RENDER_DEPLOY_HOOK_URL" >&2
-            exit 1
-          fi
-          curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK_URL"
+          test -n "$VERCEL_TOKEN" || { echo "Missing VERCEL_TOKEN secret" >&2; exit 1; }
+          test -n "$VERCEL_ORG_ID" || { echo "Missing VERCEL_ORG_ID secret" >&2; exit 1; }
+          test -n "$VERCEL_PROJECT_ID" || { echo "Missing VERCEL_PROJECT_ID secret" >&2; exit 1; }
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build for production
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+static/
+data/
+core/
+test_run.py
+test_photo.jpg
+dummy_evidence.jpg
+ela_result.jpg
+real_ela_result.jpg
