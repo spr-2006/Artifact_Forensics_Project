@@ -52,3 +52,14 @@ Project HeritageShield is a dual-core computer vision web application designed t
 
 ## Generating Reports
 Upload an image of a historical artifact or structural site. The system will automatically process the evidence through all forensic modules and generate a comprehensive, printable PDF report containing visual maps and statistical telemetry.
+
+## Deploy to Render with GitHub Actions
+This application includes a Render Blueprint and a GitHub Actions workflow. Actions runs a dependency install, Python compilation check, and FastAPI import smoke test on pushes and pull requests. A successful push to `main` triggers the Render deployment.
+
+1. Push this repository to GitHub.
+2. In Render, create a new **Blueprint** from the GitHub repository and apply the configuration in `render.yaml`. This creates the web service with automatic deploys disabled, so GitHub Actions controls deployments.
+3. In the Render service settings, create/copy its **Deploy Hook** URL.
+4. In GitHub, open **Settings → Secrets and variables → Actions → New repository secret**. Set the name to `RENDER_DEPLOY_HOOK_URL` and the value to the Render Deploy Hook URL.
+5. Push or merge a change to `main`. Check the repository's **Actions** tab for the CI checks and deployment trigger; Render will show deployment status and the public service URL.
+
+The workflow expects the production branch to be named `main`; change the branch condition in `.github/workflows/deploy.yml` if your default branch has another name. Uploaded evidence and generated images are stored under `static/`, which is ephemeral on Render's free service and may be cleared after restarts or redeploys. Use persistent/object storage before relying on it for long-term evidence retention.
