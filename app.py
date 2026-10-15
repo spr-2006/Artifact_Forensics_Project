@@ -1,11 +1,9 @@
-import base64
-import io
 import os
 import shutil
-import tempfile
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
 import cv2
 import numpy as np
@@ -19,18 +17,8 @@ from code.metadata_module import extract_metadata
 
 app = FastAPI(title="Digital Artifact Forensics Dashboard")
 
-
-def image_data_uri(image):
-    """Encode a bounded-size preview for serverless responses (no disk storage)."""
-    if image is None:
-        return ""
-
-    preview = image.convert("RGB")
-    preview.thumbnail((1280, 1280))
-    buffer = io.BytesIO()
-    preview.save(buffer, format="JPEG", quality=82, optimize=True)
-    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-    return f"data:image/jpeg;base64,{encoded}"
+os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def home_dashboard():
@@ -63,8 +51,7 @@ async def home_dashboard():
 
 @app.post("/analyze", response_class=HTMLResponse)
 async def analyze_evidence(file: UploadFile = File(...)):
-    work_dir = tempfile.mkdtemp(prefix="heritageshield-")
-    evidence_path = os.path.join(work_dir, "evidence")
+    evidence_path = f"static/{file.filename}"
     with open(evidence_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
@@ -75,10 +62,8 @@ async def analyze_evidence(file: UploadFile = File(...)):
             img_format = img.format or "Unknown"
             img_mode = img.mode
             file_size_kb = round(os.path.getsize(evidence_path) / 1024, 2)
-            original_src = image_data_uri(img)
     except Exception:
         img_width, img_height, img_format, img_mode, file_size_kb = ("N/A", "N/A", "N/A", "N/A", "N/A")
-        original_src = ""
 
     # --- 2. RUN THE FORENSIC TRIFECTA & PHASE 2 RESTORATION ---
     meta_report = extract_metadata(evidence_path)
@@ -86,9 +71,13 @@ async def analyze_evidence(file: UploadFile = File(...)):
     noise_img = analyze_noise(evidence_path)
     restored_img = restore_epigraphy(evidence_path) # <-- RUNNING PHASE 2
     
-    ela_src = image_data_uri(ela_img) or original_src
-    noise_src = image_data_uri(noise_img) or original_src
-    restored_src = image_data_uri(restored_img) or original_src
+    ela_filename = f"ela_{file.filename}"
+    noise_filename = f"noise_{file.filename}"
+    restored_filename = f"restored_{file.filename}"
+
+    if ela_img: ela_img.save(f"static/{ela_filename}")
+    if noise_img: noise_img.save(f"static/{noise_filename}")
+    if restored_img: restored_img.save(f"static/{restored_filename}")
         
     # --- 3. CALCULATE STATISTICAL TELEMETRY (THE MATH) ---
     # We mathematically calculate the variance of the high-frequency noise.
@@ -115,8 +104,6 @@ async def analyze_evidence(file: UploadFile = File(...)):
             
     except Exception:
         spatial_variance, ai_confidence, texture_grade, stat_color = ("Error", "Error", "Error", "#ffffff")
-
-    shutil.rmtree(work_dir, ignore_errors=True)
 
     # --- 4. GENERATE THE AUTOMATED VERDICT ---
     meta_status = meta_report.get('Status', '')
@@ -196,15 +183,15 @@ async def analyze_evidence(file: UploadFile = File(...)):
                     <h3>3. Phase 1: Digital Forgery Detection (Modules A & B)</h3>
                     <div class="image-row">
                         <div class="img-container">
-                            <img src="{original_src}">
+                            <img src="/static/{file.filename}">
                             <p><b>Original Evidence</b></p>
                         </div>
                         <div class="img-container">
-                            <img src="{ela_src}">
+                            <img src="/static/{ela_filename}">
                             <p><b>Module A: ELA Map</b></p>
                         </div>
                         <div class="img-container">
-                            <img src="{noise_src}">
+                            <img src="/static/{noise_filename}">
                             <p><b>Module B: High-Frequency Noise</b></p>
                         </div>
                     </div>
@@ -216,11 +203,11 @@ async def analyze_evidence(file: UploadFile = File(...)):
                     
                     <div class="image-row">
                         <div class="img-container">
-                            <img src="{original_src}">
+                            <img src="/static/{file.filename}">
                             <p><b>Degraded Source Material</b></p>
                         </div>
                         <div class="img-container">
-                            <img src="{restored_src}">
+                            <img src="/static/{restored_filename}">
                             <p><b>Restored Epigraphy Output</b></p>
                         </div>
                     </div>

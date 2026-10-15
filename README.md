@@ -53,13 +53,3 @@ Project HeritageShield is a dual-core computer vision web application designed t
 ## Generating Reports
 Upload an image of a historical artifact or structural site. The system will automatically process the evidence through all forensic modules and generate a comprehensive, printable PDF report containing visual maps and statistical telemetry.
 
-## Deploy to Vercel with GitHub Actions
-The GitHub Actions workflow runs the dependency, compilation, and FastAPI import checks on pushes and pull requests. A successful push to `main` deploys the app to Vercel with the Vercel CLI. The Vercel project uses `app.py` as its FastAPI entrypoint and `vercel.json` sets a 60-second function duration.
-
-1. Sign in to Vercel and create a project for this GitHub repository. Use the repository root as the project root. If Vercel's Git integration is enabled, disable automatic Git deployments so the GitHub Actions workflow is the only deploy trigger.
-2. Install the Vercel CLI (`npm install --global vercel`) and link this repository to the project with `vercel link`. The generated `.vercel/project.json` contains the `orgId` and `projectId` values needed by the workflow; `.vercel/` is git-ignored.
-3. Create a Vercel access token in Vercel account settings.
-4. In GitHub, open **Settings → Secrets and variables → Actions** and add repository secrets named `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` with the corresponding values.
-5. Push or merge a change to `main`. GitHub Actions runs checks, then deploys to Vercel. Find the public URL in the deployment output or Vercel dashboard.
-
-The workflow expects the production branch to be named `main`. Image uploads and derived previews are processed in temporary storage and embedded in the report response; the app does not retain uploaded evidence. Vercel Functions have request-size and execution-time limits, so very large images or long analyses may need a dedicated compute service and persistent object storage.

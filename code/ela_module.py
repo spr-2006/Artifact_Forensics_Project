@@ -1,17 +1,12 @@
 import os
-import tempfile
 from PIL import Image, ImageChops, ImageEnhance
 
 def perform_ela(image_path, quality=90):
-    temp_filename = None
     try:
-        with Image.open(image_path) as source:
-            original = source.convert('RGB')
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-            temp_filename = temp_file.name
+        original = Image.open(image_path).convert('RGB')
+        temp_filename = 'temp_compressed_ela.jpg'
         original.save(temp_filename, 'JPEG', quality=quality)
-        with Image.open(temp_filename) as compressed_file:
-            compressed = compressed_file.convert('RGB')
+        compressed = Image.open(temp_filename)
         
         ela_image = ImageChops.difference(original, compressed)
         
@@ -22,11 +17,9 @@ def perform_ela(image_path, quality=90):
             
         scale = 255.0 / max_diff
         ela_image = ImageEnhance.Brightness(ela_image).enhance(scale)
+        os.remove(temp_filename)
         return ela_image
 
     except Exception as e:
         print(f"Error processing image: {e}")
         return
-    finally:
-        if temp_filename and os.path.exists(temp_filename):
-            os.remove(temp_filename)
